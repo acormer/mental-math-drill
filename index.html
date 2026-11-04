@@ -497,6 +497,7 @@
     return opts[Math.floor(Math.random()*opts.length)];
   }
   function decompose(pct){
+    if(anchorPcts.includes(pct)) return [pct];
     const chunks=[50,25,10,5,2,1];
     let remain = pct;
     let parts=[];
@@ -526,12 +527,38 @@
   function genPercentQuestion(pct, base){
     const answer = pct/100*base;
     const questionHTML = '<span class="pct">'+pct+'%</span><span class="of">of</span>'+formatNum(base);
+    return {questionHTML, answer, breakdown: explainPercent(pct, base, answer), tol: tolerance(answer)};
+  }
+
+  // e.g. "65% = 50% + 10% + 5%  →  25 + 5 + 2.5 = 32.5"
+  function chunkSteps(pct, base, answer){
     const parts = decompose(pct);
-    const breakdown = parts.map(p=>{
-      const v = p/100*base;
-      return p+'% = '+formatNum(v);
-    }).join('  +  ') + '  →  ' + formatNum(answer);
-    return {questionHTML, answer, breakdown, tol: tolerance(answer)};
+    return parts.length<=1
+      ? pct+'% of '+formatNum(base)+' = '+formatNum(answer)
+      : pct+'% = '+parts.map(p=>p+'%').join(' + ')
+        +'  →  '+parts.map(p=>formatNum(p/100*base)).join(' + ')
+        +' = '+formatNum(answer);
+  }
+  // x% of y = y% of x — swap when the base is the easier percentage
+  // e.g. "65% of 50 = 50% of 65 = 32.5"
+  function explainPercent(pct, base, answer){
+    const head = pct+'% of '+formatNum(base);
+    if(base===100) return head+' = '+formatNum(answer);
+    // base = k × 100 with a single significant digit (200, 300, 5000, 20000…):
+    // "37% of 200 = 200% of 37 = 37 × 2 = 74"
+    const k = base/100;
+    if(decompose(pct).length>1 && Number.isInteger(k) && /^[1-9]0*$/.test(String(k))){
+      return head+' = '+formatNum(base)+'% of '+pct+' = '+pct+' × '+formatNum(k)+' = '+formatNum(answer);
+    }
+    const canSwap = base!==pct && Number.isInteger(base) && base>=1 && base<100;
+    if(canSwap && decompose(base).length < decompose(pct).length){
+      const swapped = chunkSteps(base, pct, answer);
+      // single chunk: "65% of 50 = 50% of 65 = 32.5"
+      return decompose(base).length<=1
+        ? head+' = '+swapped
+        : head+' = '+base+'% of '+formatNum(pct)+'  →  '+swapped;
+    }
+    return chunkSteps(pct, base, answer);
   }
 
   // ---------------- METRIC PREFIX QUESTIONS ----------------
