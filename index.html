@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mental Math Drill</title>
+<style>
+  :root{
+    --board:#1c2c22;
+    --board-dark:#16221b;
+    --chalk:#eee7d4;
+    --chalk-dim:#c9c2ad;
+    --yellow:#e8c547;
+    --mint:#8fd4b8;
+    --coral:#e8734a;
+    --rule:rgba(238,231,212,0.14);
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+    --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(255,255,255,0.03), transparent 40%),
+      radial-gradient(ellipse at 80% 90%, rgba(255,255,255,0.025), transparent 45%),
+      var(--board);
+    color:var(--chalk);
+    font-family: var(--font-display);
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:28px 16px 60px;
+  }
+  .wrap{
+    width:100%;
+    max-width:580px;
+  }
+  .title{
+    text-align:center;
+    margin-bottom:6px;
+  }
+  .title h1{
+    font-size:26px;
+    font-weight:400;
+    letter-spacing:0.5px;
+    margin:0;
+    color:var(--chalk);
+  }
+  .title .rule{
+    width:120px;
+    height:2px;
+    margin:10px auto 4px;
+    background:repeating-linear-gradient(90deg, var(--chalk-dim) 0 6px, transparent 6px 10px);
+    opacity:0.6;
+  }
+  .subtitle{
+    text-align:center;
+    font-size:13px;
+    color:var(--chalk-dim);
+    margin-bottom:20px;
+    font-family: var(--font-mono);
+    letter-spacing:0.5px;
+  }
+
+  /* category groups */
+  .cat-group{
+    margin-bottom:10px;
+  }
+  .cat-label{
+    font-family: var(--font-mono);
+    font-size:10.5px;
+    color:var(--chalk-dim);
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    text-align:center;
+    margin-bottom:8px;
+    opacity:0.7;
+  }
+  .modes{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    margin-bottom:16px;
+    flex-wrap:wrap;
+  }
+  .mode-btn{
+    background:transparent;
+    border:1.5px solid var(--rule);
+    color:var(--chalk-dim);
+    padding:8px 14px;
+    border-radius:3px;
+    font-family: var(--font-mono);
+    font-size:12.5px;
+    cursor:pointer;
+    transition:border-color .15s, color .15s;
+  }
+  .mode-btn:hover{ border-color:var(--chalk-dim); color:var(--chalk); }
+  .mode-btn.active{
+    border-color:var(--yellow);
+    color:var(--yellow);
+  }
+
+  .board-card{
+    background:var(--board-dark);
+    border:1px solid var(--rule);
+    border-radius:6px;
+    padding:26px 24px 22px;
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.25), 0 8px 24px rgba(0,0,0,0.3);
+    margin-top:14px;
+  }
+
+  .stat-row{
+    display:flex;
+    justify-content:space-between;
+    font-family: var(--font-mono);
+    font-size:12px;
+    color:var(--chalk-dim);
+    margin-bottom:18px;
+    letter-spacing:0.5px;
+  }
+  .stat-row span.val{ color:var(--chalk); }
+
+  .timer-track{
+    height:3px;
+    background:var(--rule);
+    border-radius:2px;
+    overflow:hidden;
+    margin-bottom:24px;
+  }
+  .timer-fill{
+    height:100%;
+    background:var(--yellow);
+    width:100%;
+    transform-origin:left;
+  }
+
+  .question{
+    text-align:center;
+    font-size:29px;
+    line-height:1.4;
+    min-height:80px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--chalk);
+    flex-wrap:wrap;
+    gap:0 4px;
+  }
+  .question .pct{ color:var(--yellow); }
+  .question .of{ color:var(--chalk-dim); font-size:0.65em; margin:0 8px;}
+  .question .target{ color:var(--chalk-dim); font-size:0.75em; }
+
+  .answer-row{
+    display:flex;
+    gap:10px;
+    margin-top:22px;
+  }
+  input#answer{
+    flex:1;
+    background:transparent;
+    border:none;
+    border-bottom:2px solid var(--chalk-dim);
+    color:var(--chalk);
+    font-family: var(--font-mono);
+    font-size:22px;
+    padding:8px 4px;
+    text-align:center;
+    outline:none;
+    transition:border-color .15s;
+    width:100%;
+    min-width:0;
+  }
+  input#answer:focus{ border-color:var(--yellow); }
+  input#answer.correct{ border-color:var(--mint); color:var(--mint); }
+  input#answer.wrong{ border-color:var(--coral); color:var(--coral); }
+
+  button#submit{
+    background:var(--yellow);
+    color:var(--board-dark);
+    border:none;
+    border-radius:3px;
+    padding:0 20px;
+    font-family: var(--font-mono);
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  button#submit:active{ transform:translateY(1px); }
+
+  .feedback{
+    margin-top:16px;
+    min-height:44px;
+    text-align:center;
+    font-family: var(--font-mono);
+    font-size:13px;
+    color:var(--chalk-dim);
+  }
+  .feedback .big{
+    font-size:15px;
+    display:block;
+    margin-bottom:4px;
+  }
+  .feedback .big.correct{ color:var(--mint); }
+  .feedback .big.wrong{ color:var(--coral); }
+
+  /* streak tally */
+  .streak-area{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    margin-top:22px;
+    padding-top:16px;
+    border-top:1px dashed var(--rule);
+  }
+  .streak-label{
+    font-family: var(--font-mono);
+    font-size:11px;
+    color:var(--chalk-dim);
+    letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .tally{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    max-width:280px;
+  }
+  .tally-group{
+    position:relative;
+    width:22px;
+    height:20px;
+  }
+  .tally-group .stroke{
+    position:absolute;
+    bottom:0;
+    width:2px;
+    height:18px;
+    background:var(--chalk);
+    border-radius:1px;
+    opacity:0.9;
+  }
+  .tally-group .stroke.s1{ left:2px; transform:rotate(0deg); }
+  .tally-group .stroke.s2{ left:7px; transform:rotate(0deg); }
+  .tally-group .stroke.s3{ left:12px; transform:rotate(0deg); }
+  .tally-group .stroke.s4{ left:17px; transform:rotate(0deg); }
+  .tally-group .stroke.s5{
+    left:-1px; top:1px; width:24px; height:2px;
+    transform:rotate(-28deg);
+    background:var(--yellow);
+  }
+
+  .start-screen{
+    text-align:center;
+    padding:20px 0 6px;
+  }
+  .start-screen p{
+    color:var(--chalk-dim);
+    font-size:14px;
+    line-height:1.6;
+    max-width:440px;
+    margin:0 auto 20px;
+  }
+  .go-btn{
+    background:var(--yellow);
+    color:var(--board-dark);
+    border:none;
+    border-radius:3px;
+    padding:12px 28px;
+    font-family: var(--font-mono);
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    letter-spacing:0.5px;
+  }
+  .hidden{ display:none !important; }
+
+  .anchors-ref{
+    margin-top:26px;
+    font-family: var(--font-mono);
+    font-size:11px;
+    color:var(--chalk-dim);
+    text-align:center;
+    line-height:1.9;
+    opacity:0.8;
+  }
+  .anchors-ref b{ color:var(--chalk); }
+  .anchors-ref .line{ display:block; }
+
+  @media (max-width: 420px){
+    .question{ font-size:22px; }
+    .board-card{ padding:20px 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">
+    <h1>Mental Math Drill</h1>
+    <div class="rule"></div>
+  </div>
+  <div class="subtitle">percentages · metric prefixes · unit conversions</div>
+
+  <div class="cat-group">
+    <div class="cat-label">Percentages</div>
+    <div class="modes">
+      <button class="mode-btn active" data-mode="anchor">Warm-up</button>
+      <button class="mode-btn" data-mode="mixed">Mixed %</button>
+      <button class="mode-btn" data-mode="big">Big numbers</button>
+    </div>
+  </div>
+
+  <div class="cat-group">
+    <div class="cat-label">Other drills</div>
+    <div class="modes">
+      <button class="mode-btn" data-mode="prefixes">Metric prefixes</button>
+      <button class="mode-btn" data-mode="speed">m/s ⇄ km/h</button>
+    </div>
+  </div>
+
+  <div class="board-card">
+
+    <div id="startScreen" class="start-screen">
+      <p id="modeDesc">Round percentages only — 10%, 5%, 25%, 50%, 20%, 1%. Get the anchors instant before moving on.</p>
+      <button class="go-btn" id="goBtn">Start drill</button>
+    </div>
+
+    <div id="drillScreen" class="hidden">
+      <div class="stat-row">
+        <div>SCORE <span class="val" id="scoreVal">0/0</span></div>
+        <div>AVG TIME <span class="val" id="avgVal">–</span></div>
+        <div>BEST STREAK <span class="val" id="bestVal">0</span></div>
+      </div>
+      <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
+
+      <div class="question" id="questionText">— </div>
+
+      <div class="answer-row">
+        <input id="answer" type="number" step="any" inputmode="decimal" placeholder="?" autocomplete="off">
+        <button id="submit">Check</button>
+      </div>
+
+      <div class="feedback" id="feedback"></div>
+
+      <div class="streak-area">
+        <div class="streak-label">Streak</div>
+        <div class="tally" id="tally"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="anchors-ref" id="refBox">
+    <span class="line"><b>10%</b> ÷10 &nbsp;·&nbsp; <b>1%</b> ÷100 &nbsp;·&nbsp; <b>5%</b> = ½ of 10% &nbsp;·&nbsp; <b>25%</b> ÷4 &nbsp;·&nbsp; <b>50%</b> ÷2 &nbsp;·&nbsp; <b>20%</b> ÷5</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  const modeBtns = document.querySelectorAll('.mode-btn');
+  const modeDesc = document.getElementById('modeDesc');
+  const goBtn = document.getElementById('goBtn');
+  const startScreen = document.getElementById('startScreen');
+  const drillScreen = document.getElementById('drillScreen');
+  const questionText = document.getElementById('questionText');
+  const answerInput = document.getElementById('answer');
+  const submitBtn = document.getElementById('submit');
+  const feedback = document.getElementById('feedback');
+  const scoreVal = document.getElementById('scoreVal');
+  const avgVal = document.getElementById('avgVal');
+  const bestVal = document.getElementById('bestVal');
+  const timerFill = document.getElementById('timerFill');
+  const tallyEl = document.getElementById('tally');
+  const refBox = document.getElementById('refBox');
+
+  const descs = {
+    anchor: 'Round percentages only — 10%, 5%, 25%, 50%, 20%, 1%. Get the anchors instant before moving on.',
+    mixed: 'Any percentage from 1–95, on round-ish numbers. Break each into anchor chunks (10% + 5% + 2%...).',
+    big: 'Round percentages, big and messy numbers — the kind you meet in real stats and reports.',
+    prefixes: 'Convert between metric prefixes (pico, nano, micro, milli, centi, kilo, mega...). Think in powers of ten.',
+    speed: 'Convert between m/s and km/h. The whole trick is one number: 3.6.'
+  };
+
+  const refLines = {
+    anchor: '<b>10%</b> ÷10 &nbsp;·&nbsp; <b>1%</b> ÷100 &nbsp;·&nbsp; <b>5%</b> = ½ of 10% &nbsp;·&nbsp; <b>25%</b> ÷4 &nbsp;·&nbsp; <b>50%</b> ÷2 &nbsp;·&nbsp; <b>20%</b> ÷5',
+    mixed: '<b>10%</b> ÷10 &nbsp;·&nbsp; <b>1%</b> ÷100 &nbsp;·&nbsp; <b>5%</b> = ½ of 10% &nbsp;·&nbsp; <b>25%</b> ÷4 &nbsp;·&nbsp; <b>50%</b> ÷2 &nbsp;·&nbsp; <b>20%</b> ÷5',
+    big: '<b>10%</b> ÷10 &nbsp;·&nbsp; <b>1%</b> ÷100 &nbsp;·&nbsp; <b>5%</b> = ½ of 10% &nbsp;·&nbsp; <b>25%</b> ÷4 &nbsp;·&nbsp; <b>50%</b> ÷2 &nbsp;·&nbsp; <b>20%</b> ÷5',
+    prefixes: '<b>pico</b> 10⁻¹² &nbsp;·&nbsp; <b>nano</b> 10⁻⁹ &nbsp;·&nbsp; <b>micro</b> 10⁻⁶ &nbsp;·&nbsp; <b>milli</b> 10⁻³ &nbsp;·&nbsp; <b>centi</b> 10⁻² &nbsp;·&nbsp; <b>kilo</b> 10³ &nbsp;·&nbsp; <b>mega</b> 10⁶',
+    speed: '<b>m/s → km/h</b>: ×3.6 (or ×18, ÷5) &nbsp;·&nbsp; <b>km/h → m/s</b>: ÷3.6 (or ×5, ÷18)'
+  };
+
+  let mode = 'anchor';
+  modeBtns.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      modeBtns.forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      mode = btn.dataset.mode;
+      modeDesc.textContent = descs[mode];
+      refBox.innerHTML = '<span class="line">'+refLines[mode]+'</span>';
+    });
+  });
+
+  goBtn.addEventListener('click', ()=>{
+    startScreen.classList.add('hidden');
+    drillScreen.classList.remove('hidden');
+    resetSession();
+    nextQuestion();
+  });
+
+  let correct=0, total=0, streak=0, best=0;
+  let times=[];
+  let current=null;
+  let qStart=0;
+  const TIME_LIMIT = 12000;
+
+  function resetSession(){
+    correct=0; total=0; streak=0; best=0; times=[];
+    updateStats();
+    renderTally();
+  }
+
+  function updateStats(){
+    scoreVal.textContent = correct + '/' + total;
+    avgVal.textContent = times.length ? (times.reduce((a,b)=>a+b,0)/times.length/1000).toFixed(1)+'s' : '–';
+    bestVal.textContent = best;
+  }
+
+  function renderTally(){
+    tallyEl.innerHTML='';
+    const full = Math.floor(streak/5);
+    const rem = streak%5;
+    for(let i=0;i<full;i++){
+      tallyEl.appendChild(makeGroup(5));
+    }
+    if(rem>0) tallyEl.appendChild(makeGroup(rem));
+    if(streak===0){
+      const span=document.createElement('div');
+      span.style.fontFamily='var(--font-mono)';
+      span.style.fontSize='12px';
+      span.style.color='var(--chalk-dim)';
+      span.textContent='—';
+      tallyEl.appendChild(span);
+    }
+  }
+  function makeGroup(n){
+    const g=document.createElement('div');
+    g.className='tally-group';
+    for(let i=1;i<=Math.min(n,4);i++){
+      const s=document.createElement('div');
+      s.className='stroke s'+i;
+      g.appendChild(s);
+    }
+    if(n===5){
+      const s=document.createElement('div');
+      s.className='stroke s5';
+      g.appendChild(s);
+    }
+    return g;
+  }
+
+  // ---------------- number formatting ----------------
+  function formatNum(n){
+    return n.toLocaleString('en-US', {maximumFractionDigits:2});
+  }
+  // formats small/large decimals without floating point junk, keeps a few sig figs
+  function formatSmart(n){
+    if(n===0) return '0';
+    const abs = Math.abs(n);
+    let digits;
+    if(abs>=1000) digits=0;
+    else if(abs>=1) digits=2;
+    else if(abs>=0.01) digits=4;
+    else digits=6;
+    let rounded = parseFloat(n.toFixed(digits));
+    // strip trailing zeros
+    return rounded.toLocaleString('en-US', {maximumFractionDigits:digits});
+  }
+
+  // ---------------- PERCENTAGE QUESTIONS ----------------
+  const anchorPcts = [10,5,25,50,20,1];
+  function roundBase(){
+    const bases = [10,20,40,50,60,80,100,120,150,200,250,300,400,500,600,800,1000,
+                    1200,1500,2000,2500,3000,4000,5000,8000,10000,20000,50000,
+                    100000,200000,250000,400000,500000,800000,1000000,1500000,2000000];
+    return bases[Math.floor(Math.random()*bases.length)];
+  }
+  function bigBase(){
+    const bases = [120000,240000,340000,460000,580000,650000,720000,860000,
+                   1200000,1400000,1800000,2300000,2600000,3400000,
+                   4200000,6800000,7500000,9200000,12000000,15000000];
+    return bases[Math.floor(Math.random()*bases.length)];
+  }
+  function messyPct(){
+    const opts=[3,6,7,8,9,11,12,13,14,15,16,17,18,19,22,23,24,27,28,30,32,35,
+                40,45,55,60,65,70,75,80,85,90,95,4,2,33,17,45,62,73,88];
+    return opts[Math.floor(Math.random()*opts.length)];
+  }
+  function decompose(pct){
+    const chunks=[50,25,10,5,2,1];
+    let remain = pct;
+    let parts=[];
+    for(const c of chunks){
+      while(remain - c >= -0.001 && remain>0.001){
+        if(c<=remain+0.0001){
+          parts.push(c);
+          remain = Math.round((remain-c)*100)/100;
+        } else break;
+      }
+    }
+    if(parts.length>4){
+      parts=[];
+      let r=pct;
+      while(r>=10){ parts.push(10); r-=10; }
+      if(r>0) parts.push(Math.round(r*100)/100);
+    }
+    return parts;
+  }
+  function tolerance(ans){
+    const mag = Math.abs(ans);
+    if(mag===0) return 0.5;
+    if(mag<20) return 0.5;
+    return Math.max(mag*0.02, 1);
+  }
+
+  function genPercentQuestion(pct, base){
+    const answer = pct/100*base;
+    const questionHTML = '<span class="pct">'+pct+'%</span><span class="of">of</span>'+formatNum(base);
+    const parts = decompose(pct);
+    const breakdown = parts.map(p=>{
+      const v = p/100*base;
+      return p+'% = '+formatNum(v);
+    }).join('  +  ') + '  →  ' + formatNum(answer);
+    return {questionHTML, answer, breakdown, tol: tolerance(answer)};
+  }
+
+  // ---------------- METRIC PREFIX QUESTIONS ----------------
+  const prefixList = [
+    {name:'pico',  sym:'p', exp:-12},
+    {name:'nano',  sym:'n', exp:-9},
+    {name:'micro', sym:'µ', exp:-6},
+    {name:'milli', sym:'m', exp:-3},
+    {name:'centi', sym:'c', exp:-2},
+    {name:'base',  sym:'',  exp:0},
+    {name:'kilo',  sym:'k', exp:3},
+    {name:'mega',  sym:'M', exp:6}
+  ];
+  // weight toward the sub-1 prefixes the user wants to drill, keep base/kilo/mega for contrast
+  const prefixWeights = [3,3,3,3,2,2,1,1]; // parallel to prefixList
+  const units = [
+    {name:'meter', sym:'m'},
+    {name:'gram', sym:'g'},
+    {name:'second', sym:'s'},
+    {name:'liter', sym:'L'},
+    {name:'watt', sym:'W'},
+    {name:'farad', sym:'F'}
+  ];
+  function weightedPick(list, weights){
+    const total = weights.reduce((a,b)=>a+b,0);
+    let r = Math.random()*total;
+    for(let i=0;i<list.length;i++){
+      if(r<weights[i]) return i;
+      r-=weights[i];
+    }
+    return list.length-1;
+  }
+  function niceValue(){
+    const vals=[1,1.5,2,2.5,3,4,5,6,7,7.5,8,9,10,12,15,18,20,25,30,40,50,60,75,80,90,
+                100,120,150,180,200,250,300,400,500,600,750,800,900];
+    return vals[Math.floor(Math.random()*vals.length)];
+  }
+  function genPrefixQuestion(){
+    let fi = weightedPick(prefixList, prefixWeights);
+    let ti = weightedPick(prefixList, prefixWeights);
+    while(ti===fi){ ti = weightedPick(prefixList, prefixWeights); }
+    const from = prefixList[fi], to = prefixList[ti];
+    const unit = units[Math.floor(Math.random()*units.length)];
+    const value = niceValue();
+    const diffExp = from.exp - to.exp; // answer = value * 10^diffExp
+    const answer = value * Math.pow(10, diffExp);
+
+    const fromLabel = from.sym+unit.sym;
+    const toLabel = to.sym+unit.sym;
+    const questionHTML = formatNum(value)+' '+fromLabel+'<span class="of">→</span><span class="target">'+toLabel+' ?</span>';
+
+    let shiftText;
+    if(diffExp>0) shiftText = '×10<sup>'+diffExp+'</sup>  (move decimal '+diffExp+' right)';
+    else if(diffExp<0) shiftText = '÷10<sup>'+(-diffExp)+'</sup>  (move decimal '+(-diffExp)+' left)';
+    else shiftText = 'same magnitude';
+
+    const breakdown = from.name+' → '+to.name+':  '+shiftText+'  →  '+formatSmart(answer)+' '+toLabel;
+
+    const tol = Math.max(Math.abs(answer)*0.02, Math.abs(answer)*0.0001);
+    return {questionHTML, answer, breakdown, tol};
+  }
+
+  // ---------------- SPEED CONVERSION QUESTIONS ----------------
+  function niceSpeedMs(){
+    const vals=[1,2,3,4,5,6,7,8,9,10,12,14,15,16,18,20,22,25,28,30,33,35,40,45,50,60,70,80,90,100];
+    return vals[Math.floor(Math.random()*vals.length)];
+  }
+  function niceSpeedKmh(){
+    const vals=[3.6,5,7,9,10,14,18,20,25,30,36,40,45,50,54,60,63,65,70,72,80,90,95,100,108,110,120,126,140,150,180,200];
+    return vals[Math.floor(Math.random()*vals.length)];
+  }
+  function genSpeedQuestion(){
+    const toKmh = Math.random()<0.5;
+    let value, answer, questionHTML, breakdown;
+    if(toKmh){
+      value = niceSpeedMs();
+      answer = value*3.6;
+      questionHTML = formatNum(value)+' m/s<span class="of">→</span><span class="target">km/h ?</span>';
+      const step1 = value*18;
+      breakdown = '×18 = '+formatSmart(step1)+'  →  ÷5 = '+formatSmart(answer)+' km/h  (i.e. ×3.6)';
+    } else {
+      value = niceSpeedKmh();
+      answer = value/3.6;
+      questionHTML = formatNum(value)+' km/h<span class="of">→</span><span class="target">m/s ?</span>';
+      const step1 = value*5;
+      breakdown = '×5 = '+formatSmart(step1)+'  →  ÷18 = '+formatSmart(answer)+' m/s  (i.e. ÷3.6)';
+    }
+    const tol = Math.max(Math.abs(answer)*0.02, 0.1);
+    return {questionHTML, answer, breakdown, tol};
+  }
+
+  // ---------------- dispatcher ----------------
+  function genQuestion(){
+    if(mode==='anchor'){
+      return genPercentQuestion(anchorPcts[Math.floor(Math.random()*anchorPcts.length)], roundBase());
+    }
+    if(mode==='mixed'){
+      const pct = Math.random()<0.3 ? anchorPcts[Math.floor(Math.random()*anchorPcts.length)] : messyPct();
+      return genPercentQuestion(pct, roundBase());
+    }
+    if(mode==='big'){
+      const pct = anchorPcts.concat([15,35,75])[Math.floor(Math.random()*(anchorPcts.length+3))];
+      return genPercentQuestion(pct, bigBase());
+    }
+    if(mode==='prefixes'){
+      return genPrefixQuestion();
+    }
+    if(mode==='speed'){
+      return genSpeedQuestion();
+    }
+  }
+
+  function nextQuestion(){
+    current = genQuestion();
+    questionText.innerHTML = current.questionHTML;
+    answerInput.value='';
+    answerInput.className='';
+    feedback.innerHTML='';
+    answerInput.disabled=false;
+    qStart = performance.now();
+    animateTimer();
+    setTimeout(()=>answerInput.focus(), 50);
+  }
+
+  function animateTimer(){
+    timerFill.style.transition='none';
+    timerFill.style.width='100%';
+    void timerFill.offsetWidth;
+    timerFill.style.transition='width '+TIME_LIMIT+'ms linear';
+    timerFill.style.width='0%';
+  }
+
+  let awaitingNext = false;
+
+  function check(){
+    if(!current) return;
+    const val = parseFloat(answerInput.value);
+    const elapsed = performance.now()-qStart;
+    if(isNaN(val)){
+      answerInput.focus();
+      return;
+    }
+    const isCorrect = Math.abs(val-current.answer) <= current.tol;
+    total++;
+    times.push(elapsed);
+    if(isCorrect){
+      correct++; streak++; best=Math.max(best,streak);
+      answerInput.classList.add('correct');
+    } else {
+      streak=0;
+      answerInput.classList.add('wrong');
+    }
+    updateStats();
+    renderTally();
+
+    feedback.innerHTML =
+      '<span class="big '+(isCorrect?'correct':'wrong')+'">'+
+      (isCorrect?'Correct':'Answer: '+formatSmart(current.answer))+
+      '</span>' +
+      '<span>'+current.breakdown+'</span>';
+
+    answerInput.disabled=true;
+    timerFill.style.transition='none';
+    timerFill.style.width='100%';
+    timerFill.style.background = isCorrect ? 'var(--mint)' : 'var(--coral)';
+
+    submitBtn.textContent = 'Next →';
+    awaitingNext = true;
+  }
+
+  function handleAction(){
+    if(awaitingNext){
+      timerFill.style.background='var(--yellow)';
+      submitBtn.textContent = 'Check';
+      awaitingNext = false;
+      nextQuestion();
+    } else {
+      check();
+    }
+  }
+
+  submitBtn.addEventListener('click', handleAction);
+  answerInput.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter') handleAction();
+  });
+})();
+</script>
+</body>
+</html>
