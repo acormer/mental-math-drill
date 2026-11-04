@@ -316,6 +316,7 @@
     <div class="modes">
       <button class="mode-btn" data-mode="prefixes">Metric prefixes</button>
       <button class="mode-btn" data-mode="speed">m/s ⇄ km/h</button>
+      <button class="mode-btn" data-mode="pace">Pace min/km</button>
     </div>
   </div>
 
@@ -379,7 +380,8 @@
     mixed: 'Any percentage from 1–95, on round-ish numbers. Break each into anchor chunks (10% + 5% + 2%...).',
     big: 'Round percentages, big and messy numbers — the kind you meet in real stats and reports.',
     prefixes: 'Convert between metric prefixes (pico, nano, micro, milli, centi, kilo, mega...). Think in powers of ten.',
-    speed: 'Convert between m/s and km/h. The whole trick is one number: 3.6.'
+    speed: 'Convert running speeds between m/s and km/h (jog to sprint). The whole trick is one number: 3.6.',
+    pace: 'Running pace ⇄ speed: km/h or m/s to min/km and back. Type paces as m:ss (e.g. 4:30).'
   };
 
   const refLines = {
@@ -387,7 +389,8 @@
     mixed: '<b>10%</b> ÷10 &nbsp;·&nbsp; <b>1%</b> ÷100 &nbsp;·&nbsp; <b>5%</b> = ½ of 10% &nbsp;·&nbsp; <b>25%</b> ÷4 &nbsp;·&nbsp; <b>50%</b> ÷2 &nbsp;·&nbsp; <b>20%</b> ÷5',
     big: '<b>10%</b> ÷10 &nbsp;·&nbsp; <b>1%</b> ÷100 &nbsp;·&nbsp; <b>5%</b> = ½ of 10% &nbsp;·&nbsp; <b>25%</b> ÷4 &nbsp;·&nbsp; <b>50%</b> ÷2 &nbsp;·&nbsp; <b>20%</b> ÷5',
     prefixes: '<b>pico</b> 10⁻¹² &nbsp;·&nbsp; <b>nano</b> 10⁻⁹ &nbsp;·&nbsp; <b>micro</b> 10⁻⁶ &nbsp;·&nbsp; <b>milli</b> 10⁻³ &nbsp;·&nbsp; <b>centi</b> 10⁻² &nbsp;·&nbsp; <b>kilo</b> 10³ &nbsp;·&nbsp; <b>mega</b> 10⁶',
-    speed: '<b>m/s → km/h</b>: ×3.6 (or ×18, ÷5) &nbsp;·&nbsp; <b>km/h → m/s</b>: ÷3.6 (or ×5, ÷18)'
+    speed: '<b>m/s → km/h</b>: ×3.6 (or ×18, ÷5) &nbsp;·&nbsp; <b>km/h → m/s</b>: ÷3.6 (or ×5, ÷18)',
+    pace: '<b>km/h → pace</b>: 60 ÷ speed (min) &nbsp;·&nbsp; <b>pace → km/h</b>: 60 ÷ pace &nbsp;·&nbsp; <b>m/s → pace</b>: 1000 ÷ speed (s) &nbsp;·&nbsp; 12 km/h = 5:00 · 15 = 4:00 · 20 = 3:00'
   };
 
   let mode = 'anchor';
@@ -622,12 +625,14 @@
   }
 
   // ---------------- SPEED CONVERSION QUESTIONS ----------------
+  // Running speeds only: walk/jog (~2 m/s, 7 km/h) up to sprint (~10 m/s, 36 km/h),
+  // weighted toward the usual training range (2.5–6 m/s, 9–22 km/h).
   function niceSpeedMs(){
-    const vals=[1,2,3,4,5,6,7,8,9,10,12,14,15,16,18,20,22,25,28,30,33,35,40,45,50,60,70,80,90,100];
+    const vals=[2,2.5,2.5,3,3,3.5,3.5,4,4,4.5,4.5,5,5,5.5,6,6.5,7,8,9,10];
     return vals[Math.floor(Math.random()*vals.length)];
   }
   function niceSpeedKmh(){
-    const vals=[3.6,5,7,9,10,14,18,20,25,30,36,40,45,50,54,60,63,65,70,72,80,90,95,100,108,110,120,126,140,150,180,200];
+    const vals=[7.2,8,9,9,10,10,10.8,11,12,12,12.6,13,14,14.4,15,15,16,16.2,18,18,20,21.6,25,30,36];
     return vals[Math.floor(Math.random()*vals.length)];
   }
   function genSpeedQuestion(){
@@ -650,6 +655,55 @@
     return {questionHTML, answer, breakdown, tol};
   }
 
+  // ---------------- RUNNING PACE QUESTIONS ----------------
+  // Pace answers are stored in seconds per km and typed as m:ss.
+  function fmtPace(sec){
+    let m=Math.floor(sec/60), s=Math.round(sec-m*60);
+    if(s===60){ m++; s=0; }
+    return m+':'+String(s).padStart(2,'0');
+  }
+  function parsePace(str){
+    const t=str.trim().replace(',', '.');
+    const m=t.match(/^(\d+)\s*[:'’\s]\s*(\d{1,2})"?$/);
+    if(m) return parseInt(m[1])*60+parseInt(m[2]);
+    const v=parseFloat(t);            // plain number = decimal minutes
+    return isNaN(v) ? NaN : v*60;
+  }
+  function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+  function genPaceQuestion(){
+    const kind = pick(['kmh2pace','kmh2pace','pace2kmh','pace2kmh','ms2pace']);
+    const paceQ = {inputType:'text', placeholder:'m:ss', parse:parsePace, tol:5};
+    if(kind==='kmh2pace'){
+      const v = pick([6,7.5,8,9,10,10,11,12,12,13,14,15,15,16,17,18,20]);
+      const min = 60/v, answer = min*60;
+      const extra = Number.isInteger(Math.round(min*1000)/1000) ? ''
+        : '  ('+formatNum(Math.round((min-Math.floor(min))*100)/100)+' min × 60 '+(Number.isInteger(answer)?'= ':'≈ ')+Math.round((min-Math.floor(min))*60)+' s)';
+      return Object.assign(paceQ, {
+        questionHTML: formatNum(v)+' km/h<span class="of">→</span><span class="target">min/km ?</span>',
+        answer, answerText: fmtPace(answer)+' /km',
+        breakdown: '60 ÷ '+formatNum(v)+(Number.isInteger(min*100)?' = ':' ≈ ')+formatSmart(min)+' min  →  '+fmtPace(answer)+' /km'+extra
+      });
+    }
+    if(kind==='ms2pace'){
+      const v = pick([2.5,3,3.5,4,4,4.5,5,5,5.5,6]);
+      const answer = 1000/v;
+      return Object.assign(paceQ, {
+        questionHTML: formatNum(v)+' m/s<span class="of">→</span><span class="target">min/km ?</span>',
+        answer, answerText: fmtPace(answer)+' /km',
+        breakdown: '1000 ÷ '+formatNum(v)+(Number.isInteger(answer)?' = ':' ≈ ')+Math.round(answer)+' s  →  '+fmtPace(answer)+' /km'
+      });
+    }
+    // pace → km/h
+    const sec = pick([180,210,225,240,255,270,285,300,300,315,330,345,360,390,420,450,480]);
+    const min = sec/60, answer = 60/min;
+    return {
+      questionHTML: fmtPace(sec)+' /km<span class="of">→</span><span class="target">km/h ?</span>',
+      answer, tol: Math.max(answer*0.02, 0.1),
+      breakdown: (sec%60 ? fmtPace(sec)+' = '+formatSmart(min)+' min  →  ' : '')
+        +'60 ÷ '+formatSmart(min)+(Number.isInteger(Math.round(answer*1000)/1000)?' = ':' ≈ ')+formatSmart(answer)+' km/h'
+    };
+  }
+
   // ---------------- dispatcher ----------------
   function genQuestion(){
     if(mode==='anchor'){
@@ -669,11 +723,18 @@
     if(mode==='speed'){
       return genSpeedQuestion();
     }
+    if(mode==='pace'){
+      return genPaceQuestion();
+    }
   }
 
   function nextQuestion(){
     current = genQuestion();
     questionText.innerHTML = current.questionHTML;
+    // pace answers need ':' so switch to a text field for those
+    answerInput.type = current.inputType || 'number';
+    answerInput.inputMode = current.inputType==='text' ? 'text' : 'decimal';
+    answerInput.placeholder = current.placeholder || '?';
     answerInput.value='';
     answerInput.className='';
     feedback.innerHTML='';
@@ -695,7 +756,7 @@
 
   function check(){
     if(!current) return;
-    const val = parseFloat(answerInput.value);
+    const val = (current.parse || parseFloat)(answerInput.value);
     const elapsed = performance.now()-qStart;
     if(isNaN(val)){
       answerInput.focus();
@@ -716,7 +777,7 @@
 
     feedback.innerHTML =
       '<span class="big '+(isCorrect?'correct':'wrong')+'">'+
-      (isCorrect?'Correct':'Answer: '+formatSmart(current.answer))+
+      (isCorrect?'Correct':'Answer: '+(current.answerText || formatSmart(current.answer)))+
       '</span>' +
       '<span>'+current.breakdown+'</span>';
 
