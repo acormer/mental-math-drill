@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c2c22">
 <title>Mental Math Drill</title>
 <style>
   :root{
@@ -17,6 +19,8 @@
     --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
   }
   *{box-sizing:border-box;}
+  button, input{ touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+  html{ -webkit-text-size-adjust:100%; }
   html,body{margin:0;padding:0;}
   body{
     background:
@@ -26,6 +30,7 @@
     color:var(--chalk);
     font-family: var(--font-display);
     min-height:100vh;
+    min-height:100dvh;
     display:flex;
     align-items:flex-start;
     justify-content:center;
@@ -94,7 +99,9 @@
     cursor:pointer;
     transition:border-color .15s, color .15s;
   }
-  .mode-btn:hover{ border-color:var(--chalk-dim); color:var(--chalk); }
+  @media (hover:hover){
+    .mode-btn:hover{ border-color:var(--chalk-dim); color:var(--chalk); }
+  }
   .mode-btn.active{
     border-color:var(--yellow);
     color:var(--yellow);
@@ -190,6 +197,7 @@
 
   .feedback{
     margin-top:16px;
+    overflow-wrap:anywhere;
     min-height:44px;
     text-align:center;
     font-family: var(--font-mono);
@@ -288,9 +296,39 @@
   .anchors-ref b{ color:var(--chalk); }
   .anchors-ref .line{ display:block; }
 
-  @media (max-width: 420px){
-    .question{ font-size:22px; }
-    .board-card{ padding:20px 16px; }
+  /* ---------- mobile ---------- */
+  @media (max-width: 520px){
+    body{
+      padding:
+        max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+        max(32px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    }
+    .title h1{ font-size:22px; }
+    .subtitle{ font-size:11.5px; margin-bottom:14px; }
+    .cat-group{ margin-bottom:4px; }
+    .cat-label{ margin-bottom:6px; }
+    .modes{ gap:6px; margin-bottom:10px; }
+    .mode-btn{ min-height:40px; padding:8px 12px; font-size:12px; flex:1 1 auto; }
+    .board-card{ padding:18px 14px 16px; margin-top:10px; }
+    .stat-row{ font-size:10.5px; margin-bottom:14px; gap:8px; letter-spacing:0; }
+    .stat-row > div{ text-align:center; }
+    .stat-row > div:first-child{ text-align:left; }
+    .stat-row > div:last-child{ text-align:right; }
+    .timer-track{ margin-bottom:16px; }
+    .question{ font-size:24px; min-height:64px; }
+    .answer-row{ margin-top:16px; }
+    input#answer{ font-size:20px; }
+    button#submit{ min-height:48px; padding:0 16px; }
+    .feedback{ font-size:12px; }
+    .streak-area{ margin-top:16px; padding-top:12px; }
+    .start-screen{ padding:12px 0 4px; }
+    .start-screen p{ font-size:13.5px; }
+    .go-btn{ width:100%; padding:14px; }
+    .anchors-ref{ margin-top:18px; font-size:10.5px; }
+  }
+  @media (max-width: 360px){
+    .question{ font-size:21px; }
+    .stat-row{ font-size:9.5px; }
   }
 </style>
 </head>
@@ -738,10 +776,10 @@
     answerInput.value='';
     answerInput.className='';
     feedback.innerHTML='';
-    answerInput.disabled=false;
+    answerInput.readOnly=false;
     qStart = performance.now();
     animateTimer();
-    setTimeout(()=>answerInput.focus(), 50);
+    answerInput.focus(); // synchronous so iOS opens the keyboard inside the tap
   }
 
   function animateTimer(){
@@ -781,7 +819,7 @@
       '</span>' +
       '<span>'+current.breakdown+'</span>';
 
-    answerInput.disabled=true;
+    answerInput.readOnly=true;
     timerFill.style.transition='none';
     timerFill.style.width='100%';
     timerFill.style.background = isCorrect ? 'var(--mint)' : 'var(--coral)';
@@ -802,6 +840,8 @@
   }
 
   submitBtn.addEventListener('click', handleAction);
+  // keep focus (and the mobile keyboard) on the input when tapping the button
+  submitBtn.addEventListener('pointerdown', e=>{ if(document.activeElement===answerInput) e.preventDefault(); });
   answerInput.addEventListener('keydown', (e)=>{
     if(e.key==='Enter') handleAction();
   });
