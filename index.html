@@ -284,6 +284,32 @@
   }
   .hidden{ display:none !important; }
 
+  /* voice mode */
+  .voice-bar{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .voice-bar .mode-btn[aria-pressed="true"]{
+    border-color:var(--yellow);
+    color:var(--yellow);
+  }
+  .voice-bar .mode-btn:disabled{ opacity:0.4; cursor:default; }
+  .voice-status{
+    font-family: var(--font-mono);
+    font-size:11px;
+    color:var(--chalk-dim);
+    text-align:center;
+    min-height:16px;
+    margin-top:8px;
+  }
+  .voice-status.error{ color:var(--coral); }
+  .question .listen{ color:var(--chalk-dim); font-size:0.7em; font-family:var(--font-mono); }
+  .replay-row{ text-align:center; min-height:34px; margin-top:6px; }
+  .replay-btn{ padding:5px 12px; font-size:11.5px; }
+
   .anchors-ref{
     margin-top:26px;
     font-family: var(--font-mono);
@@ -357,6 +383,17 @@
     </div>
   </div>
 
+  <div class="cat-group">
+    <div class="cat-label">Voice</div>
+    <div class="voice-bar">
+      <button class="mode-btn" id="voiceBtn" aria-pressed="false">Voice off</button>
+      <button class="mode-btn" id="langEn" data-lang="en" aria-pressed="true">English</button>
+      <button class="mode-btn" id="langFr" data-lang="fr" aria-pressed="false">Français</button>
+      <button class="mode-btn" id="hideBtn" aria-pressed="false">Hide text</button>
+    </div>
+    <div class="voice-status" id="voiceStatus" role="status"></div>
+  </div>
+
   <div class="board-card">
 
     <div id="startScreen" class="start-screen">
@@ -373,6 +410,7 @@
       <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
 
       <div class="question" id="questionText">— </div>
+      <div class="replay-row"><button class="mode-btn replay-btn hidden" id="replayBtn">↻ Replay</button></div>
 
       <div class="answer-row">
         <input id="answer" type="number" step="any" inputmode="decimal" placeholder="?" autocomplete="off">
@@ -396,7 +434,7 @@
 
 <script>
 (function(){
-  const modeBtns = document.querySelectorAll('.mode-btn');
+  const modeBtns = document.querySelectorAll('.mode-btn[data-mode]');
   const modeDesc = document.getElementById('modeDesc');
   const goBtn = document.getElementById('goBtn');
   const startScreen = document.getElementById('startScreen');
@@ -497,6 +535,14 @@
     return g;
   }
 
+  // ---------------- spoken forms ----------------
+  // Plain digits, no thousands separators: the TTS text normalizer turns them
+  // into words for the chosen language. French uses a decimal comma.
+  function sayNum(n, lang){
+    const s = String(Math.round(n*100)/100);
+    return lang==='fr' ? s.replace('.', ',') : s;
+  }
+
   // ---------------- number formatting ----------------
   function formatNum(n){
     return n.toLocaleString('en-US', {maximumFractionDigits:2});
@@ -565,7 +611,11 @@
   function genPercentQuestion(pct, base){
     const answer = pct/100*base;
     const questionHTML = '<span class="pct">'+pct+'%</span><span class="of">of</span>'+formatNum(base);
-    return {questionHTML, answer, breakdown: explainPercent(pct, base, answer), tol: tolerance(answer)};
+    const speech = {
+      en: pct+' percent of '+sayNum(base,'en'),
+      fr: pct+' pour cent de '+sayNum(base,'fr')
+    };
+    return {questionHTML, speech, answer, breakdown: explainPercent(pct, base, answer), tol: tolerance(answer)};
   }
 
   // e.g. "65% = 50% + 10% + 5%  →  25 + 5 + 2.5 = 32.5"
@@ -613,12 +663,12 @@
   // weight toward the sub-1 prefixes the user wants to drill, keep base/kilo/mega for contrast
   const prefixWeights = [3,3,3,3,2,2,1,1]; // parallel to prefixList
   const units = [
-    {name:'meter', sym:'m'},
-    {name:'gram', sym:'g'},
-    {name:'second', sym:'s'},
-    {name:'liter', sym:'L'},
-    {name:'watt', sym:'W'},
-    {name:'farad', sym:'F'}
+    {name:'meter', sym:'m', fr:'mètre'},
+    {name:'gram', sym:'g', fr:'gramme'},
+    {name:'second', sym:'s', fr:'seconde'},
+    {name:'liter', sym:'L', fr:'litre'},
+    {name:'watt', sym:'W', fr:'watt'},
+    {name:'farad', sym:'F', fr:'farad'}
   ];
   function weightedPick(list, weights){
     const total = weights.reduce((a,b)=>a+b,0);
@@ -655,8 +705,16 @@
 
     const breakdown = from.name+' → '+to.name+':  '+shiftText+'  →  '+formatSmart(answer)+' '+toLabel;
 
+    const frPrefix = n => n==='base' ? '' : (n==='mega' ? 'méga' : n);
+    const enPrefix = n => n==='base' ? '' : n;
+    const speech = {
+      en: sayNum(value,'en')+' '+enPrefix(from.name)+unit.name+(value===1?'':'s')+', in '+enPrefix(to.name)+unit.name+'s',
+      // French: singular below 2 ("1,5 litre"), plural from 2
+      fr: sayNum(value,'fr')+' '+frPrefix(from.name)+unit.fr+(value<2?'':'s')+', en '+frPrefix(to.name)+unit.fr+'s'
+    };
+
     const tol = Math.max(Math.abs(answer)*0.02, Math.abs(answer)*0.0001);
-    return {questionHTML, answer, breakdown, tol};
+    return {questionHTML, speech, answer, breakdown, tol};
   }
 
   // ---------------- RUNNING PACE QUESTIONS ----------------
@@ -684,6 +742,10 @@
         : '  ('+formatNum(Math.round((min-Math.floor(min))*100)/100)+' min × 60 '+(Number.isInteger(answer)?'= ':'≈ ')+Math.round((min-Math.floor(min))*60)+' s)';
       return Object.assign(paceQ, {
         questionHTML: formatNum(v)+' km/h<span class="of">→</span><span class="target">min/km ?</span>',
+        speech: {
+          en: sayNum(v,'en')+' kilometers per hour, in minutes per kilometer',
+          fr: sayNum(v,'fr')+' kilomètres heure, en minutes par kilomètre'
+        },
         answer, answerText: fmtPace(answer)+' /km',
         breakdown: '60 ÷ '+formatNum(v)+(Number.isInteger(min*100)?' = ':' ≈ ')+formatSmart(min)+' min  →  '+fmtPace(answer)+' /km'+extra
       });
@@ -691,8 +753,13 @@
     // pace → km/h
     const sec = pick([180,210,225,240,255,270,285,300,300,315,330,345,360,390,420,450,480]);
     const min = sec/60, answer = 60/min;
+    const spokenPace = Math.floor(min)+' minutes'+(sec%60 ? ' '+(sec%60) : '');
     return {
       questionHTML: fmtPace(sec)+' /km<span class="of">→</span><span class="target">km/h ?</span>',
+      speech: {
+        en: spokenPace+' per kilometer, in kilometers per hour',
+        fr: spokenPace+' au kilomètre, en kilomètres heure'
+      },
       answer, tol: Math.max(answer*0.02, 0.1),
       breakdown: (sec%60 ? fmtPace(sec)+' = '+formatSmart(min)+' min  →  ' : '')
         +'60 ÷ '+formatSmart(min)+(Number.isInteger(Math.round(answer*1000)/1000)?' = ':' ≈ ')+formatSmart(answer)+' km/h'
@@ -720,9 +787,238 @@
     }
   }
 
+  // ---------------- VOICE (Gradium Phonon, on-device text-to-speech) ----------------
+  // The model runs in a Web Worker in this browser (WebAssembly): no server, no API key.
+  // English uses Phonon 31m from the Hugging Face Hub (downloaded once, then cached).
+  // French uses Phonon 40m from a public copy of Gradium's gated repo.
+  const voiceBtn = document.getElementById('voiceBtn');
+  const hideBtn = document.getElementById('hideBtn');
+  const langBtns = [document.getElementById('langEn'), document.getElementById('langFr')];
+  const voiceStatus = document.getElementById('voiceStatus');
+  const replayBtn = document.getElementById('replayBtn');
+
+  const MODELS = {
+    en: undefined, // the package default: hf://gradium/phonon-31m-en, pinned to a commit
+    // Gradium's French repo is gated, so a browser cannot load it: this is an unchanged public
+    // copy (CC BY-NC 4.0), pinned to a commit so the weights cannot change under the page.
+    fr: 'hf://cormer/phonon-40m-fr@51f1dbcec42a38ff3050bb47f60246ab6e57a96d'
+  };
+  const MODEL_LABEL = {en:'Phonon 31m', fr:'Phonon 40m'};
+
+  const voice = {on:false, lang:'en', hide:false, ctx:null, tts:null, loading:null, epoch:0};
+  let prepared = null;   // next question, generated ahead so its audio is ready
+  let playToken = 0;
+  let sources = [];
+
+  try{
+    const saved = JSON.parse(localStorage.getItem('mmd.voice') || '{}');
+    voice.on = !!saved.on; voice.hide = !!saved.hide;
+    if(saved.lang==='fr' || saved.lang==='en') voice.lang = saved.lang;
+  }catch(e){}
+  function saveVoice(){
+    try{ localStorage.setItem('mmd.voice', JSON.stringify({on:voice.on, lang:voice.lang, hide:voice.hide})); }catch(e){}
+  }
+
+  function setVoiceStatus(text, isError){
+    voiceStatus.textContent = text;
+    voiceStatus.classList.toggle('error', !!isError);
+  }
+  function renderVoiceUI(){
+    voiceBtn.textContent = voice.on ? 'Voice on' : 'Voice off';
+    voiceBtn.setAttribute('aria-pressed', voice.on);
+    hideBtn.setAttribute('aria-pressed', voice.hide);
+    hideBtn.disabled = !voice.on;
+    langBtns.forEach(b=>b.setAttribute('aria-pressed', b.dataset.lang===voice.lang));
+    replayBtn.classList.toggle('hidden', !voice.on);
+  }
+
+  // Browsers only let audio start from a user gesture, so this is called from click handlers.
+  function ensureCtx(){
+    if(!voice.ctx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return null;
+      voice.ctx = new AC();
+    }
+    if(voice.ctx.state==='suspended') voice.ctx.resume().catch(()=>{});
+    return voice.ctx;
+  }
+
+  function loadVoice(){
+    if(voice.loading) return voice.loading;
+    const lang = voice.lang, epoch = voice.epoch;
+    setVoiceStatus('Loading voice model…');
+    const p = (async()=>{
+      const {PhononTTS} = await import('./vendor/phonon-tts/index.js');
+      const tts = await PhononTTS.load({
+        lang, model: MODELS[lang],
+        onProgress: ({file, loaded, total, cached})=>{
+          if(epoch!==voice.epoch || file!=='weights' || cached || !total) return;
+          setVoiceStatus('Downloading voice model… '+Math.round(loaded/total*100)+'% of '+Math.round(total/1e6)+' MB (first time only)');
+        }
+      });
+      if(epoch!==voice.epoch){ tts.dispose(); throw new Error('superseded'); }
+      voice.tts = tts;
+      setVoiceStatus('Voice ready · '+MODEL_LABEL[lang]+', running on this device ('+tts.device+')');
+      return tts;
+    })();
+    voice.loading = p;
+    p.catch(e=>{ if(epoch===voice.epoch) voiceFailed(e); });
+    return p;
+  }
+
+  // Drop the loaded model and everything generated with it (language change, voice off, error).
+  function resetVoice(){
+    voice.epoch++;
+    stopPlayback();
+    if(prepared && prepared.utt) prepared.utt.ac.abort();
+    prepared = null;
+    if(voice.tts){ try{ voice.tts.dispose(); }catch(e){} }
+    voice.tts = null; voice.loading = null;
+  }
+  function voiceFailed(e){
+    console.error('voice:', e);
+    resetVoice();
+    voice.on = false; saveVoice(); renderVoiceUI();
+    setVoiceStatus('Voice unavailable: '+(e && e.message || e), true);
+    showQuestion();
+    if(current && current.waitingForSpeech) startClock(current);
+  }
+
+  // An utterance collects audio chunks as the model generates them, so playback can start
+  // on the first chunk (streaming) and a replay can reuse them without generating again.
+  function makeUtterance(text){
+    const u = {chunks:[], done:false, waiters:[], ac:new AbortController()};
+    const epoch = voice.epoch;
+    const wake = ()=>{ u.waiters.splice(0).forEach(r=>r()); };
+    (async()=>{
+      const tts = await loadVoice();
+      for await (const pcm of tts.stream(text, {signal:u.ac.signal})){ u.chunks.push(pcm); wake(); }
+    })().catch(e=>{
+      if(epoch===voice.epoch && !u.ac.signal.aborted) voiceFailed(e);
+    }).finally(()=>{ u.done = true; wake(); });
+    return u;
+  }
+
+  function stopPlayback(){
+    playToken++;
+    sources.forEach(s=>{ try{ s.stop(); }catch(e){} });
+    sources = [];
+  }
+  // Schedules chunks back to back on the audio clock. Resolves true once the
+  // utterance has been fully heard, false if it was interrupted.
+  async function play(u){
+    stopPlayback();
+    const my = playToken, ctx = ensureCtx();
+    if(!ctx) return false;
+    let t = 0, i = 0;
+    while(my===playToken){
+      if(i<u.chunks.length){
+        const pcm = u.chunks[i++];
+        const buf = ctx.createBuffer(1, pcm.length, voice.tts ? voice.tts.sampleRate : 24000);
+        buf.getChannelData(0).set(pcm);
+        const src = ctx.createBufferSource();
+        src.buffer = buf; src.connect(ctx.destination);
+        t = Math.max(t, ctx.currentTime + 0.03);
+        src.start(t); t += buf.duration;
+        sources.push(src);
+      } else if(u.done){
+        break;
+      } else {
+        await new Promise(r=>u.waiters.push(r));
+      }
+    }
+    if(my!==playToken) return false; // interrupted; an empty utterance still counts as heard
+    await new Promise(r=>setTimeout(r, Math.max(0, (t-ctx.currentTime)*1000)));
+    return my===playToken;
+  }
+
+  function attachSpeech(q){
+    q.lang = voice.lang; q.mode = mode;
+    q.utt = makeUtterance(q.speech[voice.lang]);
+    return q;
+  }
+  // Generate the next question's audio while the user is still answering this one.
+  function prepareNext(){
+    if(prepared && prepared.utt) prepared.utt.ac.abort();
+    prepared = voice.on ? attachSpeech(genQuestion()) : null;
+  }
+  function takeQuestion(){
+    const q = prepared; prepared = null;
+    if(q && voice.on && q.mode===mode && q.lang===voice.lang) return q;
+    if(q && q.utt) q.utt.ac.abort();
+    return voice.on ? attachSpeech(genQuestion()) : genQuestion();
+  }
+
+  function showQuestion(){
+    if(!current) return;
+    const hidden = voice.on && voice.hide && !awaitingNext;
+    questionText.innerHTML = hidden ? '<span class="listen">listen…</span>' : current.questionHTML;
+  }
+  function startClock(q){
+    q.waitingForSpeech = false;
+    qStart = performance.now();
+    animateTimer();
+  }
+  // Speak the current question; the timer only starts once it has been heard.
+  function speakCurrent(){
+    const q = current;
+    if(!q.utt || q.lang!==voice.lang) attachSpeech(q);
+    q.waitingForSpeech = true;
+    timerFill.style.transition='none';
+    timerFill.style.width='100%';
+    play(q.utt).then(heard=>{
+      if(current===q && q.waitingForSpeech && !awaitingNext && (heard || !voice.on)) startClock(q);
+    });
+  }
+
+  voiceBtn.addEventListener('click', ()=>{
+    voice.on = !voice.on;
+    saveVoice(); renderVoiceUI();
+    if(voice.on){
+      ensureCtx();
+      loadVoice().catch(()=>{});
+      if(current && !awaitingNext){ showQuestion(); speakCurrent(); prepareNext(); }
+    } else {
+      const waiting = current && current.waitingForSpeech;
+      resetVoice();
+      setVoiceStatus('');
+      showQuestion();
+      if(waiting && !awaitingNext) startClock(current);
+    }
+  });
+  langBtns.forEach(b=>b.addEventListener('click', ()=>{
+    if(b.dataset.lang===voice.lang) return;
+    resetVoice();
+    voice.lang = b.dataset.lang;
+    saveVoice(); renderVoiceUI();
+    setVoiceStatus('');
+    if(voice.on){
+      ensureCtx();
+      loadVoice().catch(()=>{});
+      if(current && !awaitingNext){ speakCurrent(); prepareNext(); }
+    }
+  }));
+  hideBtn.addEventListener('click', ()=>{
+    voice.hide = !voice.hide;
+    saveVoice(); renderVoiceUI(); showQuestion();
+  });
+  replayBtn.addEventListener('click', ()=>{
+    if(!voice.on || !current) return;
+    if(!current.utt || current.lang!==voice.lang) attachSpeech(current);
+    const q = current;
+    play(q.utt).then(heard=>{
+      if(heard && current===q && q.waitingForSpeech && !awaitingNext) startClock(q);
+    });
+    if(!awaitingNext) answerInput.focus();
+  });
+  replayBtn.addEventListener('pointerdown', e=>{ if(document.activeElement===answerInput) e.preventDefault(); });
+
+  renderVoiceUI();
+  if(voice.on) loadVoice().catch(()=>{}); // model is normally cached by now
+
   function nextQuestion(){
-    current = genQuestion();
-    questionText.innerHTML = current.questionHTML;
+    current = takeQuestion();
+    showQuestion();
     // pace answers need ':' so switch to a text field for those
     answerInput.type = current.inputType || 'number';
     answerInput.inputMode = current.inputType==='text' ? 'text' : 'decimal';
@@ -732,7 +1028,13 @@
     feedback.innerHTML='';
     answerInput.readOnly=false;
     qStart = performance.now();
-    animateTimer();
+    if(voice.on){
+      ensureCtx();
+      speakCurrent();
+      prepareNext();
+    } else {
+      animateTimer();
+    }
     answerInput.focus(); // synchronous so iOS opens the keyboard inside the tap
   }
 
@@ -755,6 +1057,8 @@
       return;
     }
     const isCorrect = Math.abs(val-current.answer) <= current.tol;
+    stopPlayback();
+    current.waitingForSpeech = false;
     total++;
     times.push(elapsed);
     if(isCorrect){
@@ -780,6 +1084,7 @@
 
     submitBtn.textContent = 'Next →';
     awaitingNext = true;
+    showQuestion(); // reveals the text if it was hidden
   }
 
   function handleAction(){

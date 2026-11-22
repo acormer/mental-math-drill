@@ -1,0 +1,2 @@
+# Local copy of the French voice model; the site loads it from huggingface.co/cormer/phonon-40m-fr
+models/
